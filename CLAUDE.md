@@ -56,7 +56,7 @@ src/
 │   └── layout.tsx              # テーマ永続化（DaisyUI data-theme）
 ├── lib/
 │   └── session.ts              # セッション ID 管理
-profile-chat-ai-docs/           # サブモジュール or シンボリックリンク
+profile-chat-ai-docs/           # シンボリックリンク（別リポジトリ）
 ```
 
 ## ビルド・開発コマンド
@@ -125,7 +125,7 @@ pnpm start
 |-----------|------|
 | `profile-chat-ai-fe`（本リポジトリ） | Next.js FE + BFF |
 | `profile-chat-api`（別リポジトリ） | FastAPI + LangGraph AIバックエンド |
-| `profile-chat-ai-docs`（サブモジュール） | 設計・仕様ドキュメント |
+| `profile-chat-ai-docs`（別リポジトリ・ローカルではシンボリックリンクで参照） | 設計・仕様ドキュメント |
 
 ## 参照ドキュメント
 
