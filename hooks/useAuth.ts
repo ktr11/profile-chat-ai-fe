@@ -25,21 +25,42 @@ function writeTrialCookie(identityId: string) {
   document.cookie = `${TRIAL_IDENTITY_COOKIE}=${encodeURIComponent(identityId)}; expires=${expires}; path=/; SameSite=Strict`;
 }
 
+/** Cognito でログイン済みのユーザー情報 */
 export type AuthUser = {
   username: string;
   userId: string;
 };
 
+/** Cognito Unauthenticated Identity を使った試用ユーザー情報 */
 export type TrialUser = {
   identityId: string;
 };
 
+/**
+ * 認証状態を表す discriminated union。
+ *
+ * - `loading`        : 初期化中（Cognito セッション確認前）
+ * - `unauthenticated`: 未ログイン・試用もしていない
+ * - `trial`          : 試用中（Cookie に identityId を保持）
+ * - `authenticated`  : ログイン済み
+ *
+ * `trial` と `authenticated` は排他。`startTrial()` 呼び出し後は
+ * `login()` を呼ぶと `authenticated` に遷移し、試用 Cookie は `logout()` で削除される。
+ */
 export type AuthState =
   | { type: "loading" }
   | { type: "unauthenticated" }
   | { type: "trial"; user: TrialUser }
   | { type: "authenticated"; user: AuthUser };
 
+/**
+ * アプリ全体の認証状態を管理するフック。
+ *
+ * マウント時に Cookie → Cognito セッションの順で状態を復元する。
+ * 試用 Cookie が存在する場合は Cognito 確認をスキップして `trial` 状態で開始する。
+ *
+ * @returns `authState` と、状態を遷移させる各操作関数
+ */
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>(() => {
     const trialId = readTrialCookie();
@@ -63,8 +84,11 @@ export function useAuth() {
     setAuthState({ type: "authenticated", user: { username: user.username, userId: user.userId } });
   }, []);
 
+  /**
+   * ログアウトする。試用 Cookie も同時に削除するため、
+   * `trial` 状態からでも呼び出せる。
+   */
   const logout = useCallback(async () => {
-    // trial Cookie を削除
     document.cookie = `${TRIAL_IDENTITY_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
     await signOut().catch(() => {});
     setAuthState({ type: "unauthenticated" });
@@ -89,13 +113,18 @@ export function useAuth() {
     []
   );
 
+  /**
+   * 試用を開始し `trial` 状態へ遷移する。
+   *
+   * 本番では Cognito Unauthenticated Identity から identityId を取得して
+   * Cookie に保存する。ローカル開発（`NEXT_PUBLIC_MOCK_TRIAL=true`）では
+   * ランダムなダミー ID を使用する（cognito-local が Identity Pool 未対応のため）。
+   */
   const startTrial = useCallback(async () => {
-    // ローカル開発時はダミー Identity ID を使用（cognito-local は Identity Pool 未サポート）
     let identityId: string;
     if (process.env.NEXT_PUBLIC_MOCK_TRIAL === "true") {
       identityId = "mock-identity-" + Math.random().toString(36).slice(2, 10);
     } else {
-      // 本番: Cognito Unauthenticated Identity から Identity ID を取得
       const session = await fetchAuthSession({ forceRefresh: true });
       if (!session.identityId) throw new Error("Identity ID を取得できませんでした");
       identityId = session.identityId;
