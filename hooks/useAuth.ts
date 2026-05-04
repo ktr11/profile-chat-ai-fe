@@ -12,6 +12,19 @@ import {
   fetchAuthSession,
 } from "aws-amplify/auth";
 
+const TRIAL_IDENTITY_COOKIE = "trial-identity-id";
+
+function readTrialCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|; )trial-identity-id=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function writeTrialCookie(identityId: string) {
+  const expires = new Date(Date.now() + 30 * 864e5).toUTCString();
+  document.cookie = `${TRIAL_IDENTITY_COOKIE}=${encodeURIComponent(identityId)}; expires=${expires}; path=/; SameSite=Strict`;
+}
+
 export type AuthUser = {
   username: string;
   userId: string;
@@ -28,14 +41,20 @@ export type AuthState =
   | { type: "authenticated"; user: AuthUser };
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>({ type: "loading" });
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    const trialId = readTrialCookie();
+    if (trialId) return { type: "trial", user: { identityId: trialId } };
+    return { type: "loading" };
+  });
 
   useEffect(() => {
+    if (authState.type !== "loading") return;
     getCurrentUser()
       .then((user) =>
         setAuthState({ type: "authenticated", user: { username: user.username, userId: user.userId } })
       )
       .catch(() => setAuthState({ type: "unauthenticated" }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -45,7 +64,9 @@ export function useAuth() {
   }, []);
 
   const logout = useCallback(async () => {
-    await signOut();
+    // trial Cookie を削除
+    document.cookie = `${TRIAL_IDENTITY_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    await signOut().catch(() => {});
     setAuthState({ type: "unauthenticated" });
   }, []);
 
@@ -70,15 +91,16 @@ export function useAuth() {
 
   const startTrial = useCallback(async () => {
     // ローカル開発時はダミー Identity ID を使用（cognito-local は Identity Pool 未サポート）
+    let identityId: string;
     if (process.env.NEXT_PUBLIC_MOCK_TRIAL === "true") {
-      const mockIdentityId = "mock-identity-" + Math.random().toString(36).slice(2, 10);
-      setAuthState({ type: "trial", user: { identityId: mockIdentityId } });
-      return;
+      identityId = "mock-identity-" + Math.random().toString(36).slice(2, 10);
+    } else {
+      // 本番: Cognito Unauthenticated Identity から Identity ID を取得
+      const session = await fetchAuthSession({ forceRefresh: true });
+      if (!session.identityId) throw new Error("Identity ID を取得できませんでした");
+      identityId = session.identityId;
     }
-    // 本番: Cognito Unauthenticated Identity から Identity ID を取得
-    const session = await fetchAuthSession({ forceRefresh: true });
-    const identityId = session.identityId;
-    if (!identityId) throw new Error("Identity ID を取得できませんでした");
+    writeTrialCookie(identityId);
     setAuthState({ type: "trial", user: { identityId } });
   }, []);
 
