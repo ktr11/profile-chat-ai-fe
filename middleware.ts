@@ -1,3 +1,13 @@
+/**
+ * 認証ガードミドルウェア
+ *
+ * `/chat` と `/api/chat` へのアクセスを保護する。
+ * Cognito accessToken Cookie または試用 Cookie（`trial-identity-id`）が
+ * 存在しない場合は `/login` へリダイレクトする。
+ *
+ * 注意: Cookie の存在チェックのみで JWT の署名検証は行わない。
+ * 実際の検証は `app/api/chat/route.ts` の `verifyToken` で行う。
+ */
 import { NextRequest, NextResponse } from "next/server";
 
 const COGNITO_COOKIE_PREFIX = "CognitoIdentityServiceProvider";
