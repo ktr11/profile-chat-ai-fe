@@ -9,6 +9,9 @@ export function configureAmplify() {
         userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!,
         userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID!,
         signUpVerificationMethod: "code",
+        ...(process.env.NEXT_PUBLIC_COGNITO_ENDPOINT && {
+          userPoolEndpoint: process.env.NEXT_PUBLIC_COGNITO_ENDPOINT,
+        }),
       },
     },
   });
