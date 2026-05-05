@@ -3,6 +3,7 @@
     "allow": [
       "Bash(gh pr view *)",
       "Bash(gh pr list *)",
+      "Bash(gh issue view *)",
       "Bash(gh issue list *)"
     ]
   }
