@@ -48,14 +48,32 @@ src/
 │   │       └── route.ts        # SSE 中継 BFF（Edge Runtime）
 │   ├── chat/
 │   │   └── page.tsx            # チャット画面
-│   ├── components/
-│   │   ├── ChatBubble.tsx      # DaisyUI chat-bubble ラッパー
-│   │   └── ChatInput.tsx       # 入力フォーム
-│   ├── hooks/
-│   │   └── useChat.ts          # SSE ストリーミング受信フック
-│   └── layout.tsx              # テーマ永続化（DaisyUI data-theme）
+│   ├── login/
+│   │   └── page.tsx            # ログイン画面
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx              # テーマ永続化（DaisyUI data-theme）
+│   └── page.tsx                # トップページ
+├── components/
+│   ├── ChatBubble.tsx          # DaisyUI chat-bubble ラッパー
+│   ├── ChatInput.tsx           # 入力フォーム
+│   ├── AmplifyProvider.tsx     # Amplify 設定プロバイダー
+│   ├── Header.tsx
+│   ├── Hero.tsx
+│   ├── AboutMe.tsx
+│   ├── Skills.tsx
+│   ├── Projects.tsx
+│   ├── Contact.tsx
+│   └── Footer.tsx
+├── constants/
+│   ├── projects.ts
+│   ├── skills.ts
+│   └── social.ts
+├── hooks/
+│   └── useAuth.ts              # 認証フック
 ├── lib/
-│   └── session.ts              # セッション ID 管理
+│   └── amplify.ts              # Amplify 設定
+└── middleware.ts               # 認証ミドルウェア
 profile-chat-ai-docs/           # シンボリックリンク（別リポジトリ）
 ```
 
