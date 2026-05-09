@@ -1,16 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  signIn,
-  signOut,
-  signUp,
-  confirmSignUp,
-  resetPassword,
-  confirmResetPassword,
-  getCurrentUser,
-  fetchAuthSession,
-} from "aws-amplify/auth";
 
 const TRIAL_IDENTITY_COOKIE = "trial-identity-id";
 
@@ -25,42 +15,33 @@ function writeTrialCookie(identityId: string) {
   document.cookie = `${TRIAL_IDENTITY_COOKIE}=${encodeURIComponent(identityId)}; expires=${expires}; path=/; SameSite=Strict`;
 }
 
-/** Cognito でログイン済みのユーザー情報 */
 export type AuthUser = {
   username: string;
-  userId: string;
+  email: string;
 };
 
-/** Cognito Unauthenticated Identity を使った試用ユーザー情報 */
 export type TrialUser = {
   identityId: string;
 };
 
-/**
- * 認証状態を表す discriminated union。
- *
- * - `loading`        : 初期化中（Cognito セッション確認前）
- * - `unauthenticated`: 未ログイン・試用もしていない
- * - `trial`          : 試用中（Cookie に identityId を保持）
- * - `authenticated`  : ログイン済み
- *
- * `trial` と `authenticated` は排他。`startTrial()` 呼び出し後は
- * `login()` を呼ぶと `authenticated` に遷移し、試用 Cookie は `logout()` で削除される。
- */
 export type AuthState =
   | { type: "loading" }
   | { type: "unauthenticated" }
   | { type: "trial"; user: TrialUser }
   | { type: "authenticated"; user: AuthUser };
 
-/**
- * アプリ全体の認証状態を管理するフック。
- *
- * マウント時に Cookie → Cognito セッションの順で状態を復元する。
- * 試用 Cookie が存在する場合は Cognito 確認をスキップして `trial` 状態で開始する。
- *
- * @returns `authState` と、状態を遷移させる各操作関数
- */
+async function authFetch(path: string, options?: RequestInit): Promise<Response> {
+  const res = await fetch(path, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...options?.headers },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "エラーが発生しました");
+  }
+  return res;
+}
+
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>(() => {
     const trialId = readTrialCookie();
@@ -70,64 +51,71 @@ export function useAuth() {
 
   useEffect(() => {
     if (authState.type !== "loading") return;
-    getCurrentUser()
-      .then((user) =>
-        setAuthState({ type: "authenticated", user: { username: user.username, userId: user.userId } })
+    fetch("/api/auth/me")
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((data) =>
+        setAuthState({ type: "authenticated", user: { username: data.username, email: data.email } })
       )
       .catch(() => setAuthState({ type: "unauthenticated" }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    await signIn({ username: email, password });
-    const user = await getCurrentUser();
-    setAuthState({ type: "authenticated", user: { username: user.username, userId: user.userId } });
+    await authFetch("/api/auth/signin", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    const res = await fetch("/api/auth/me");
+    const data = await res.json();
+    setAuthState({ type: "authenticated", user: { username: data.username, email: data.email } });
   }, []);
 
-  /**
-   * ログアウトする。試用 Cookie も同時に削除するため、
-   * `trial` 状態からでも呼び出せる。
-   */
   const logout = useCallback(async () => {
     document.cookie = `${TRIAL_IDENTITY_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
-    await signOut().catch(() => {});
+    await fetch("/api/auth/signout", { method: "POST" }).catch(() => {});
     setAuthState({ type: "unauthenticated" });
   }, []);
 
   const register = useCallback(async (email: string, password: string) => {
-    await signUp({ username: email, password, options: { userAttributes: { email } } });
+    await authFetch("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
   }, []);
 
   const confirmRegistration = useCallback(async (email: string, code: string) => {
-    await confirmSignUp({ username: email, confirmationCode: code });
+    await authFetch("/api/auth/confirm", {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    });
   }, []);
 
   const forgotPassword = useCallback(async (email: string) => {
-    await resetPassword({ username: email });
+    await authFetch("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
   }, []);
 
   const confirmForgotPassword = useCallback(
     async (email: string, code: string, newPassword: string) => {
-      await confirmResetPassword({ username: email, confirmationCode: code, newPassword });
+      await authFetch("/api/auth/confirm-forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email, code, newPassword }),
+      });
     },
     []
   );
 
-  /**
-   * 試用を開始し `trial` 状態へ遷移する。
-   *
-   * 本番では Cognito Unauthenticated Identity から identityId を取得して
-   * Cookie に保存する。ローカル開発（`NEXT_PUBLIC_MOCK_TRIAL=true`）では
-   * ランダムなダミー ID を使用する（cognito-local が Identity Pool 未対応のため）。
-   */
   const startTrial = useCallback(async () => {
     let identityId: string;
     if (process.env.NEXT_PUBLIC_MOCK_TRIAL === "true") {
       identityId = "mock-identity-" + Math.random().toString(36).slice(2, 10);
     } else {
-      const session = await fetchAuthSession({ forceRefresh: true });
-      if (!session.identityId) throw new Error("Identity ID を取得できませんでした");
-      identityId = session.identityId;
+      throw new Error("Trial は現在準備中です");
     }
     writeTrialCookie(identityId);
     setAuthState({ type: "trial", user: { identityId } });
