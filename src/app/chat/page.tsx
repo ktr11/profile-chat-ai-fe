@@ -14,7 +14,6 @@ interface Message {
 
 const TRIAL_LIMIT = 5;
 const TRIAL_COUNT_COOKIE = "trial-chat-count";
-const TRIAL_IDENTITY_COOKIE = "trial-identity-id";
 
 const INITIAL_MESSAGES: Message[] = [
   {
@@ -57,10 +56,6 @@ export default function ChatPage() {
     if (authState.type === "unauthenticated") {
       router.push("/login");
       return;
-    }
-    if (authState.type === "trial") {
-      // trial Identity ID を Cookie にセット（Middleware が読む）
-      setCookie(TRIAL_IDENTITY_COOKIE, authState.user.identityId);
     }
   }, [authState, router]);
 

@@ -2,19 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-const TRIAL_IDENTITY_COOKIE = "trial-identity-id";
-
-function readTrialCookie(): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(/(?:^|; )trial-identity-id=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function writeTrialCookie(identityId: string) {
-  const expires = new Date(Date.now() + 30 * 864e5).toUTCString();
-  document.cookie = `${TRIAL_IDENTITY_COOKIE}=${encodeURIComponent(identityId)}; expires=${expires}; path=/; SameSite=Strict`;
-}
-
 export type AuthUser = {
   username: string;
   email: string;
@@ -43,14 +30,9 @@ async function authFetch(path: string, options?: RequestInit): Promise<Response>
 }
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>(() => {
-    const trialId = readTrialCookie();
-    if (trialId) return { type: "trial", user: { identityId: trialId } };
-    return { type: "loading" };
-  });
+  const [authState, setAuthState] = useState<AuthState>({ type: "loading" });
 
   useEffect(() => {
-    if (authState.type !== "loading") return;
     fetch("/api/auth/me")
       .then((res) => {
         if (!res.ok) throw new Error();
@@ -59,8 +41,12 @@ export function useAuth() {
       .then((data) =>
         setAuthState({ type: "authenticated", user: { username: data.username, email: data.email } })
       )
-      .catch(() => setAuthState({ type: "unauthenticated" }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => {
+        fetch("/api/auth/trial/check")
+          .then((res) => res.ok ? res.json() : Promise.reject())
+          .then((data) => setAuthState({ type: "trial", user: { identityId: data.identityId } }))
+          .catch(() => setAuthState({ type: "unauthenticated" }));
+      });
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -74,7 +60,6 @@ export function useAuth() {
   }, []);
 
   const logout = useCallback(async () => {
-    document.cookie = `${TRIAL_IDENTITY_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
     await fetch("/api/auth/signout", { method: "POST" }).catch(() => {});
     setAuthState({ type: "unauthenticated" });
   }, []);
@@ -111,14 +96,9 @@ export function useAuth() {
   );
 
   const startTrial = useCallback(async () => {
-    let identityId: string;
-    if (process.env.NEXT_PUBLIC_MOCK_TRIAL === "true") {
-      identityId = "mock-identity-" + Math.random().toString(36).slice(2, 10);
-    } else {
-      throw new Error("Trial は現在準備中です");
-    }
-    writeTrialCookie(identityId);
-    setAuthState({ type: "trial", user: { identityId } });
+    const res = await authFetch("/api/auth/trial", { method: "POST" });
+    const data = await res.json();
+    setAuthState({ type: "trial", user: { identityId: data.identityId } });
   }, []);
 
   return {
