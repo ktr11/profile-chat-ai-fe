@@ -42,7 +42,7 @@ export function useAuth() {
         setAuthState({ type: "authenticated", user: { username: data.username, email: data.email } })
       )
       .catch(() => {
-        fetch("/api/auth/trial/check")
+        fetch("/api/auth/trial")
           .then((res) => res.ok ? res.json() : Promise.reject())
           .then((data) => setAuthState({ type: "trial", user: { identityId: data.identityId } }))
           .catch(() => setAuthState({ type: "unauthenticated" }));
