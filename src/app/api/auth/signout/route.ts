@@ -16,5 +16,6 @@ export async function POST(request: NextRequest) {
 
   const response = NextResponse.json({ ok: true });
   clearAuthCookies(response);
+  response.cookies.set("trial-identity-id", "", { maxAge: 0, path: "/" });
   return response;
 }

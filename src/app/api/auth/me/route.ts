@@ -17,9 +17,12 @@ export async function GET(request: NextRequest) {
 
   const email = result.UserAttributes?.find((a) => a.Name === "email")?.Value ?? "";
 
+  const sub = result.UserAttributes?.find((a) => a.Name === "sub")?.Value ?? "";
+
   return NextResponse.json({
     authenticated: true,
     username: result.Username,
     email,
+    sub,
   });
 }
