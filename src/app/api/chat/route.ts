@@ -7,40 +7,42 @@ const TRIAL_COOKIE = "trial-identity-id";
 
 export const runtime = "nodejs";
 
-async function verifyToken(token: string): Promise<boolean> {
+async function verifyToken(token: string): Promise<string | null> {
   const verifier = CognitoJwtVerifier.create({
     userPoolId: process.env.COGNITO_USER_POOL_ID!,
     tokenUse: "access",
     clientId: process.env.COGNITO_CLIENT_ID!,
   });
   try {
-    await verifier.verify(token);
-    return true;
+    const payload = await verifier.verify(token);
+    return payload.sub;
   } catch {
-    return false;
+    return null;
   }
 }
 
 export async function POST(request: NextRequest) {
-  const isTrial = !!request.cookies.get(TRIAL_COOKIE)?.value;
+  const trialId = request.cookies.get(TRIAL_COOKIE)?.value ?? null;
   let accessToken = request.cookies.get("access_token")?.value ?? null;
   const refreshToken = request.cookies.get("refresh_token")?.value ?? null;
 
-  if (!isTrial && !accessToken && !refreshToken) {
+  if (!trialId && !accessToken && !refreshToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let newTokenSet: { accessToken: string; refreshToken: string } | null = null;
+  let userSub: string | null = null;
 
-  if (!isTrial && accessToken) {
-    const valid = await verifyToken(accessToken);
-    if (!valid) {
+  if (!trialId && accessToken) {
+    userSub = await verifyToken(accessToken);
+    if (!userSub) {
       if (!refreshToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       try {
         newTokenSet = await refreshAccessToken(refreshToken);
         accessToken = newTokenSet.accessToken;
+        userSub = await verifyToken(accessToken);
       } catch {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
@@ -54,11 +56,14 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
+  const userId = trialId ? `trial:${trialId}` : userSub ?? "";
+
   const upstream = await fetch(`${pythonApiUrl}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Internal-API-Key": process.env.INTERNAL_API_KEY ?? "",
+      "X-User-Id": userId,
     },
     body: JSON.stringify(body),
   });
