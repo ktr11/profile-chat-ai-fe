@@ -22,7 +22,7 @@ export async function POST() {
     secure: IS_PROD,
     sameSite: "lax",
     path: "/",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 7 * 24 * 60 * 60,
   });
   return response;
 }
