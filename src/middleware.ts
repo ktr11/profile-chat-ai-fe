@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const TRIAL_COOKIE = "trial-identity-id";
+const TRIAL_COOKIE = "trial_uuid";
 
 export function middleware(request: NextRequest) {
   if (request.cookies.get(TRIAL_COOKIE)?.value) {
