@@ -12,9 +12,6 @@ interface Message {
   content: string;
 }
 
-const TRIAL_LIMIT = 5;
-const TRIAL_COUNT_COOKIE = "trial-chat-count";
-
 const INITIAL_MESSAGES: Message[] = [
   {
     id: 0,
@@ -24,61 +21,67 @@ const INITIAL_MESSAGES: Message[] = [
   },
 ];
 
-const MOCK_AI_RESPONSE =
-  "ご質問ありがとうございます。私は Kentaro.T のポートフォリオチャットAIです。バックエンドの準備が整い次第、詳しくお答えできるようになります。もうしばらくお待ちください！";
-
 const TRIAL_LIMIT_MESSAGE =
-  "お試し利用の5回分をご利用いただきました。続きをご利用になる場合は、正式ログインをお願いします。";
-
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]*)"));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-function setCookie(name: string, value: string, days = 30) {
-  const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Strict`;
-}
+  "お試し利用の上限に達しました。続きをご利用になる場合は、正式ログインをお願いします。";
 
 export default function ChatPage() {
   const router = useRouter();
   const { authState, logout } = useAuth();
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [trialCount, setTrialCount] = useState(() =>
-    parseInt(getCookie(TRIAL_COUNT_COOKIE) ?? "0", 10)
-  );
-  const [trialExhausted, setTrialExhausted] = useState(
-    () => parseInt(getCookie(TRIAL_COUNT_COOKIE) ?? "0", 10) >= TRIAL_LIMIT
-  );
+  const [chatCount, setChatCount] = useState(0);
+  const [chatLimit, setChatLimit] = useState(0);
+  const [trialExhausted, setTrialExhausted] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (authState.type === "unauthenticated") {
       router.push("/login");
       return;
     }
+    if (authState.type === "trial") {
+      setChatCount(authState.chatCount);
+      setChatLimit(authState.chatLimit);
+      setTrialExhausted(authState.chatCount >= authState.chatLimit);
+    }
   }, [authState, router]);
 
-  const handleSend = (text: string) => {
+  const handleSend = async (text: string) => {
     const userMsg: Message = { id: Date.now(), role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
+    setSending(true);
 
-    let aiContent = MOCK_AI_RESPONSE;
-    let nextCount = trialCount;
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
 
-    if (authState.type === "trial") {
-      nextCount = trialCount + 1;
-      setCookie(TRIAL_COUNT_COOKIE, String(nextCount));
-      setTrialCount(nextCount);
-
-      if (nextCount >= TRIAL_LIMIT) {
-        aiContent = MOCK_AI_RESPONSE + "\n\n" + TRIAL_LIMIT_MESSAGE;
-        setTrialExhausted(true);
+      if (res.status === 401) {
+        router.push("/login");
+        return;
       }
-    }
 
-    const aiMsg: Message = { id: Date.now() + 1, role: "ai", content: aiContent };
-    setMessages((prev) => [...prev, aiMsg]);
+      if (res.status === 403) {
+        setTrialExhausted(true);
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, role: "ai", content: TRIAL_LIMIT_MESSAGE },
+        ]);
+        return;
+      }
+
+      const data = await res.json();
+      setChatCount(data.chat_count);
+      setChatLimit(data.chat_limit);
+      setTrialExhausted(data.chat_count >= data.chat_limit);
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, role: "ai", content: data.reply },
+      ]);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -99,9 +102,9 @@ export default function ChatPage() {
       <header className="navbar bg-base-100 border-b border-base-200 px-4">
         <div className="navbar-start text-xl font-bold">AI Chat</div>
         <div className="navbar-end gap-2">
-          {authState.type === "trial" && (
+          {authState.type === "trial" && chatLimit > 0 && (
             <span className="text-xs text-base-content/50">
-              お試し {Math.min(trialCount, TRIAL_LIMIT)}/{TRIAL_LIMIT}
+              お試し {Math.min(chatCount, chatLimit)}/{chatLimit}
             </span>
           )}
           <button className="btn btn-ghost btn-sm" onClick={handleLogout}>
@@ -116,7 +119,7 @@ export default function ChatPage() {
         ))}
       </div>
 
-      <ChatInput onSend={handleSend} disabled={trialExhausted} />
+      <ChatInput onSend={handleSend} disabled={trialExhausted || sending} />
     </div>
   );
 }
