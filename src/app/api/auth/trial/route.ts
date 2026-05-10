@@ -4,12 +4,12 @@ export const runtime = "nodejs";
 
 const TRIAL_COOKIE = "trial_uuid";
 
-async function callPythonSession(trialUuid?: string): Promise<Response> {
-  const pythonApiUrl = process.env.PYTHON_API_URL;
-  if (!pythonApiUrl) {
+async function callChatAiSession(trialUuid?: string): Promise<Response> {
+  const chatAiApiUrl = process.env.PYTHON_API_URL;
+  if (!chatAiApiUrl) {
     throw new Error("PYTHON_API_URL is not set");
   }
-  return fetch(`${pythonApiUrl}/session`, {
+  return fetch(`${chatAiApiUrl}/session`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No trial session" }, { status: 401 });
   }
 
-  const upstream = await callPythonSession(trialUuid);
+  const upstream = await callChatAiSession(trialUuid);
   if (!upstream.ok) {
     return NextResponse.json({ error: "Failed to fetch session" }, { status: upstream.status });
   }
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST() {
-  const upstream = await callPythonSession();
+  const upstream = await callChatAiSession();
   if (!upstream.ok) {
     return NextResponse.json({ error: "Failed to create session" }, { status: upstream.status });
   }

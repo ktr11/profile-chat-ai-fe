@@ -11,14 +11,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const pythonApiUrl = process.env.PYTHON_API_URL;
-  if (!pythonApiUrl) {
+  const chatAiApiUrl = process.env.PYTHON_API_URL;
+  if (!chatAiApiUrl) {
     return NextResponse.json({ error: "PYTHON_API_URL is not set" }, { status: 500 });
   }
 
   const body = await request.json();
 
-  const upstream = await fetch(`${pythonApiUrl}/chat`, {
+  const upstream = await fetch(`${chatAiApiUrl}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
