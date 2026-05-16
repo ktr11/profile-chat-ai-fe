@@ -1,28 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 
-const IS_PROD = process.env.NODE_ENV === "production";
+const TRIAL_COOKIE = "trial_uuid";
+
+async function callChatAiSession(trialUuid?: string): Promise<Response> {
+  const chatAiApiUrl = process.env.PYTHON_API_URL;
+  if (!chatAiApiUrl) {
+    throw new Error("PYTHON_API_URL is not set");
+  }
+  return fetch(`${chatAiApiUrl}/session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(trialUuid ? { Cookie: `${TRIAL_COOKIE}=${trialUuid}` } : {}),
+    },
+  });
+}
 
 export async function GET(request: NextRequest) {
-  const identityId = request.cookies.get("trial-identity-id")?.value;
-  if (!identityId) {
+  const trialUuid = request.cookies.get(TRIAL_COOKIE)?.value;
+  if (!trialUuid) {
     return NextResponse.json({ error: "No trial session" }, { status: 401 });
   }
-  return NextResponse.json({ identityId });
+
+  const upstream = await callChatAiSession(trialUuid);
+  if (!upstream.ok) {
+    return NextResponse.json({ error: "Failed to fetch session" }, { status: upstream.status });
+  }
+
+  const data = await upstream.json();
+  return NextResponse.json({ chatCount: data.chat_count, chatLimit: data.chat_limit });
 }
 
 export async function POST() {
-  const identityId = randomUUID();
+  const upstream = await callChatAiSession();
+  if (!upstream.ok) {
+    return NextResponse.json({ error: "Failed to create session" }, { status: upstream.status });
+  }
 
-  const response = NextResponse.json({ ok: true, identityId });
-  response.cookies.set("trial-identity-id", identityId, {
-    httpOnly: true,
-    secure: IS_PROD,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60,
-  });
+  const data = await upstream.json();
+
+  const setCookieHeader = upstream.headers.get("set-cookie");
+  const response = NextResponse.json({ chatCount: data.chat_count, chatLimit: data.chat_limit });
+  if (setCookieHeader) {
+    response.headers.set("set-cookie", setCookieHeader);
+  }
   return response;
 }

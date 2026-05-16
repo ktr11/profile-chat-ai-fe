@@ -1,38 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const TRIAL_COOKIE = "trial-identity-id";
+const TRIAL_COOKIE = "trial_uuid";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const trialId = request.cookies.get(TRIAL_COOKIE)?.value ?? null;
+  const trialUuid = request.cookies.get(TRIAL_COOKIE)?.value ?? null;
 
-  if (!trialId) {
+  if (!trialUuid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const pythonApiUrl = process.env.PYTHON_API_URL;
-  if (!pythonApiUrl) {
+  const chatAiApiUrl = process.env.PYTHON_API_URL;
+  if (!chatAiApiUrl) {
     return NextResponse.json({ error: "PYTHON_API_URL is not set" }, { status: 500 });
   }
 
   const body = await request.json();
 
-  const upstream = await fetch(`${pythonApiUrl}/chat`, {
+  const upstream = await fetch(`${chatAiApiUrl}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Internal-API-Key": process.env.INTERNAL_API_KEY ?? "",
-      "X-User-Id": `trial:${trialId}`,
+      Cookie: `${TRIAL_COOKIE}=${trialUuid}`,
     },
     body: JSON.stringify(body),
   });
 
-  return new NextResponse(upstream.body, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": upstream.headers.get("Content-Type") ?? "text/event-stream",
-      "Cache-Control": "no-cache",
-    },
-  });
+  const data = await upstream.json();
+  return NextResponse.json(data, { status: upstream.status });
 }
