@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "daisyui": "^5.5.19",
@@ -19,6 +20,8 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@mswjs/http-middleware": "^0.10.3",
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -34,6 +37,7 @@
     "jsdom": "^29.1.1",
     "msw": "^2.14.6",
     "tailwindcss": "^4",
+    "tsx": "^4.22.0",
     "typescript": "^5",
     "vitest": "^4.1.6"
   },
