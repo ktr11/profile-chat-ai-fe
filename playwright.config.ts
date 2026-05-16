@@ -20,7 +20,7 @@ export default defineConfig({
   webServer: [
     {
       command: "MOCK_API_URL=http://localhost:18000 pnpm tsx e2e/mock-server.ts",
-      url: "http://localhost:18000",
+      url: "http://localhost:18000/health",
       reuseExistingServer: false,
       timeout: 10000,
     },
