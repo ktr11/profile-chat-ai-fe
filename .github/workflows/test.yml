@@ -26,3 +26,5 @@ jobs:
 
       - name: Run tests
         run: pnpm test:coverage
+        env:
+          FORCE_COLOR: true
