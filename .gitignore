@@ -49,3 +49,7 @@ profile-chat-ai-docs
 # tmp
 tmp
 .claude/skills/pca-*
+
+# Playwright
+test-results/
+playwright-report/
