@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 
-const PYTHON_API_URL = "http://localhost:8000";
+const PYTHON_API_URL = process.env.MOCK_API_URL ?? "http://localhost:8000";
 
 export const handlers = [
   http.post(`${PYTHON_API_URL}/chat`, () => {
