@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const MOCK_PORT = 18000;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -19,13 +21,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "MOCK_API_URL=http://localhost:18000 pnpm tsx e2e/mock-server.ts",
-      url: "http://localhost:18000/health",
+      command: `MOCK_PORT=${MOCK_PORT} MOCK_API_URL=http://localhost:${MOCK_PORT} pnpm tsx e2e/mock-server.ts`,
+      url: `http://localhost:${MOCK_PORT}/health`,
       reuseExistingServer: false,
       timeout: 10000,
     },
     {
-      command: "PYTHON_API_URL=http://localhost:18000 pnpm dev",
+      command: `PYTHON_API_URL=http://localhost:${MOCK_PORT} pnpm dev`,
       url: "http://localhost:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
