@@ -24,27 +24,37 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "No trial session" }, { status: 401 });
   }
 
-  const upstream = await callChatAiSession(trialUuid);
-  if (!upstream.ok) {
-    return NextResponse.json({ error: "Failed to fetch session" }, { status: upstream.status });
-  }
+  try {
+    const upstream = await callChatAiSession(trialUuid);
+    if (!upstream.ok) {
+      return NextResponse.json({ error: "Failed to fetch session" }, { status: upstream.status });
+    }
 
-  const data = await upstream.json();
-  return NextResponse.json({ chatCount: data.chat_count, chatLimit: data.chat_limit });
+    const data = await upstream.json();
+    return NextResponse.json({ chatCount: data.chat_count, chatLimit: data.chat_limit });
+  } catch (e) {
+    const message = (e as Error).message;
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function POST() {
-  const upstream = await callChatAiSession();
-  if (!upstream.ok) {
-    return NextResponse.json({ error: "Failed to create session" }, { status: upstream.status });
-  }
+  try {
+    const upstream = await callChatAiSession();
+    if (!upstream.ok) {
+      return NextResponse.json({ error: "Failed to create session" }, { status: upstream.status });
+    }
 
-  const data = await upstream.json();
+    const data = await upstream.json();
 
-  const setCookieHeader = upstream.headers.get("set-cookie");
-  const response = NextResponse.json({ chatCount: data.chat_count, chatLimit: data.chat_limit });
-  if (setCookieHeader) {
-    response.headers.set("set-cookie", setCookieHeader);
+    const setCookieHeader = upstream.headers.get("set-cookie");
+    const response = NextResponse.json({ chatCount: data.chat_count, chatLimit: data.chat_limit });
+    if (setCookieHeader) {
+      response.headers.set("set-cookie", setCookieHeader);
+    }
+    return response;
+  } catch (e) {
+    const message = (e as Error).message;
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-  return response;
 }
