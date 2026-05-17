@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const TRIAL_COOKIE = "trial_uuid";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (request.cookies.get(TRIAL_COOKIE)?.value) {
     return NextResponse.next();
   }
