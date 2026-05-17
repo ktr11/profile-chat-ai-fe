@@ -26,24 +26,15 @@ const TRIAL_LIMIT_MESSAGE =
 
 export default function ChatPage() {
   const router = useRouter();
-  const { authState, logout } = useAuth();
+  const { authState, logout, updateCount } = useAuth();
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [chatCount, setChatCount] = useState(0);
-  const [chatLimit, setChatLimit] = useState(0);
-  const [trialExhausted, setTrialExhausted] = useState(false);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (authState.type === "unauthenticated") {
       router.push("/login");
-      return;
     }
-    if (authState.type === "trial") {
-      setChatCount(authState.chatCount);
-      setChatLimit(authState.chatLimit);
-      setTrialExhausted(authState.chatCount >= authState.chatLimit);
-    }
-  }, [authState, router]);
+  }, [authState.type, router]);
 
   const handleSend = async (text: string) => {
     const userMsg: Message = { id: Date.now(), role: "user", content: text };
@@ -63,7 +54,6 @@ export default function ChatPage() {
       }
 
       if (res.status === 403) {
-        setTrialExhausted(true);
         setMessages((prev) => [
           ...prev,
           { id: Date.now() + 1, role: "ai", content: TRIAL_LIMIT_MESSAGE },
@@ -72,9 +62,7 @@ export default function ChatPage() {
       }
 
       const data = await res.json();
-      setChatCount(data.chat_count);
-      setChatLimit(data.chat_limit);
-      setTrialExhausted(data.chat_count >= data.chat_limit);
+      updateCount(data.chat_count, data.chat_limit);
       setMessages((prev) => [
         ...prev,
         { id: Date.now() + 1, role: "ai", content: data.reply },
@@ -102,9 +90,9 @@ export default function ChatPage() {
       <header className="navbar bg-base-100 border-b border-base-200 px-4">
         <div className="navbar-start text-xl font-bold">AI Chat</div>
         <div className="navbar-end gap-2">
-          {authState.type === "trial" && chatLimit > 0 && (
+          {authState.type === "trial" && authState.chatLimit > 0 && (
             <span className="text-xs text-base-content/50">
-              お試し {Math.min(chatCount, chatLimit)}/{chatLimit}
+              お試し {Math.min(authState.chatCount, authState.chatLimit)}/{authState.chatLimit}
             </span>
           )}
           <button className="btn btn-ghost btn-sm" onClick={handleLogout}>
@@ -119,7 +107,7 @@ export default function ChatPage() {
         ))}
       </div>
 
-      <ChatInput onSend={handleSend} disabled={trialExhausted || sending} />
+      <ChatInput onSend={handleSend} disabled={(authState.type === "trial" && authState.chatCount >= authState.chatLimit) || sending} />
     </div>
   );
 }
