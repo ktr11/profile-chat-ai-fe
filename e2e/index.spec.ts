@@ -12,6 +12,14 @@ test.describe("indexページ", () => {
     await expect(page.getByRole("contentinfo")).toBeVisible();
   });
 
+  test("Header のナビリンクに対応するセクションが存在する", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#about")).toBeAttached();
+    await expect(page.locator("#skills")).toBeAttached();
+    await expect(page.locator("#projects")).toBeAttached();
+    await expect(page.locator("#contact")).toBeAttached();
+  });
+
   test("Hero の「AIと話す」ボタンを押すと /login に遷移する", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("link", { name: "AIと話す" }).click();
