@@ -1,9 +1,5 @@
 import { test, expect } from "@playwright/test";
 
-test.use({
-  storageState: undefined,
-});
-
 test.beforeEach(async ({ context }) => {
   await context.addCookies([
     {
@@ -45,6 +41,9 @@ test.describe("チャットフロー", () => {
     await page.getByRole("button", { name: "送信" }).click();
 
     await expect(page.getByRole("button", { name: "送信" })).toBeDisabled();
+
+    const responsePromise = page.waitForResponse("**/api/chat");
     resolveChat!();
+    await responsePromise;
   });
 });
