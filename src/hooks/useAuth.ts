@@ -34,5 +34,12 @@ export function useAuth() {
     setAuthState({ type: "unauthenticated" });
   }, []);
 
-  return { authState, startTrial, logout };
+  const updateCount = useCallback((chatCount: number, chatLimit: number) => {
+    setAuthState((prev) => {
+      if (prev.type !== "trial") return prev;
+      return { ...prev, chatCount, chatLimit };
+    });
+  }, []);
+
+  return { authState, startTrial, logout, updateCount };
 }
