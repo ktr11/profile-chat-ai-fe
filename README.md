@@ -4,8 +4,8 @@ AIエージェント搭載ポートフォリオアプリ「profile-chat-ai」の
 
 ## 概要
 
-Next.js App Router で構築した UI と、Python AIバックエンド（FastAPI + LangGraph）への SSE ストリーミング中継 BFF を提供します。  
-設計・仕様ドキュメントは [`profile-chat-ai-docs`](https://github.com/ktr11/profile-chat-ai-docs)（別リポジトリ）を参照してください。ローカルではリポジトリ直下にシンボリックリンクを作成して参照します。
+Next.js App Router で構築したチャット UI と、Python バックエンド（FastAPI）への JSON 中継 BFF を提供します。  
+プロジェクト横断の設計ドキュメントは [`profile-chat-ai-docs`](https://github.com/ktr11/profile-chat-ai-docs) を参照してください。
 
 ## 技術スタック
 
@@ -15,7 +15,7 @@ Next.js App Router で構築した UI と、Python AIバックエンド（FastAP
 | UI | Tailwind CSS + DaisyUI |
 | パッケージマネージャ | pnpm |
 | Node.js 管理 | fnm |
-| BFF | Next.js Route Handlers (Edge Runtime) |
+| BFF | Next.js Route Handlers (Node.js Runtime) |
 
 ## クイックスタート
 
@@ -51,8 +51,5 @@ pnpm tsc --noEmit  # 型チェック
 | ドキュメント | 内容 |
 |------------|------|
 | [CLAUDE.md](./CLAUDE.md) | AIエージェント向け開発ガイド（ビルドコマンド・規約・設計方針） |
+| [UI 設計指針](./docs/ui-design.md) | DaisyUI コンポーネント設計 |
 | [システム全体構成](https://github.com/ktr11/profile-chat-ai-docs/blob/main/docs/architecture/overall.md) | アーキテクチャ図・データフロー |
-| [SSE ストリーミング仕様](https://github.com/ktr11/profile-chat-ai-docs/blob/main/docs/api/streaming-spec.md) | BFF・バックエンド間の SSE インターフェース |
-| [UI 設計指針](https://github.com/ktr11/profile-chat-ai-docs/blob/main/docs/frontend/ui-design.md) | DaisyUI コンポーネント設計 |
-| [ローカル環境構築](https://github.com/ktr11/profile-chat-ai-docs/blob/main/docs/development/local-setup.md) | WSL2 / uv / fnm セットアップ手順 |
-| [AWS リソース設計](https://github.com/ktr11/profile-chat-ai-docs/blob/main/docs/infrastructure/aws-resources.md) | Bedrock / DynamoDB / S3 Vectors 構成 |

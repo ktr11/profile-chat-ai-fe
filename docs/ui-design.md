@@ -14,9 +14,9 @@ Tailwind CSS は強力なユーティリティファーストフレームワー�
 </div>
 ```
 
-### DaisyUI の解決策：意味論的クラス名
+### DaisyUI の解決策
 
-DaisyUI は Tailwind CSS のプラグインとして動作し、**意味論的なコンポーネントクラス**を提供します。開発速度が向上し、コードの可読性も高まります。
+DaisyUI は Tailwind CSS のプラグインとして動作し、意味論的なコンポーネントクラスを提供します。
 
 ```html
 <!-- DaisyUI: シンプルで読みやすい -->
@@ -25,231 +25,106 @@ DaisyUI は Tailwind CSS のプラグインとして動作し、**意味論的�
 </div>
 ```
 
-### 採用メリット一覧
+### 設定
 
-| 観点 | Tailwind 単体 | Tailwind + DaisyUI |
-|-----|------------|-------------------|
-| コンポーネント実装速度 | 遅い（ゼロから組む） | 速い（既製コンポーネント） |
-| テーマ切り替え | 手動（CSS変数管理） | `data-theme` 1属性で切替 |
-| ダークモード | `dark:` プレフィックス多用 | テーマに内包 |
-| クラス名の可読性 | 低い（ユーティリティの羅列） | 高い（意味論的クラス） |
-| カスタマイズ性 | 完全自由 | テーマ変数経由で柔軟 |
+Tailwind CSS v4 + DaisyUI プラグイン構文を使用しています。
+
+```css
+/* src/app/globals.css */
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light;
+}
+```
+
+テーマは `light` 固定です。
 
 ## チャット UI コンポーネント設計
 
-### 基本構造
+### コンポーネント構成
+
+```
+src/app/chat/page.tsx     — チャットページ（状態管理・API通信）
+src/components/ChatBubble.tsx — メッセージ吹き出し
+src/components/ChatInput.tsx  — メッセージ入力フォーム
+```
+
+### ChatBubble
+
+ユーザーと AI のメッセージを DaisyUI の `chat` コンポーネントで表示します。
 
 ```tsx
-// src/app/components/ChatBubble.tsx
+// src/components/ChatBubble.tsx
 interface ChatBubbleProps {
   message: string;
   isUser: boolean;
-  avatar?: string;
-  timestamp?: string;
 }
 
-export function ChatBubble({ message, isUser, avatar, timestamp }: ChatBubbleProps) {
+export default function ChatBubble({ message, isUser }: ChatBubbleProps) {
   return (
     <div className={`chat ${isUser ? "chat-end" : "chat-start"}`}>
-      {avatar && (
-        <div className="chat-image avatar">
-          <div className="w-10 rounded-full">
-            <img src={avatar} alt="avatar" />
-          </div>
-        </div>
-      )}
       <div className={`chat-bubble ${isUser ? "chat-bubble-primary" : ""}`}>
         {message}
       </div>
-      {timestamp && <div className="chat-footer opacity-50 text-xs">{timestamp}</div>}
     </div>
   );
 }
 ```
 
-### ストリーミング対応チャット画面
+- ユーザーメッセージ: 右寄せ（`chat-end`）+ primary カラー
+- AI メッセージ: 左寄せ（`chat-start`）+ デフォルトカラー
+
+### ChatInput
+
+メッセージ入力フォーム。DaisyUI の `input` と `btn` クラスを使用。
 
 ```tsx
-// src/app/chat/page.tsx
-"use client";
-import { useState, useRef, useEffect } from "react";
-import { ChatBubble } from "@/components/ChatBubble";
-
-export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [streamingText, setStreamingText] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // SSE ストリーミング受信
-  async function sendMessage(userInput: string) {
-    setIsLoading(true);
-    setStreamingText("");
-
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ message: userInput, session_id: getSessionId() }),
-    });
-
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      // SSE フォーマット: "data: {token}\n\n"
-      const token = parseSSEChunk(chunk);
-      setStreamingText((prev) => prev + token);
-    }
-
-    setIsLoading(false);
-  }
-
-  return (
-    <div className="flex flex-col h-screen bg-base-200">
-      {/* ヘッダー */}
-      <div className="navbar bg-base-100 shadow-sm">
-        <span className="navbar-start text-xl font-bold">AI Chat</span>
-        <div className="navbar-end">
-          <label className="swap swap-rotate">
-            <input type="checkbox" className="theme-controller" value="dark" />
-            {/* ダークモードアイコン */}
-          </label>
-        </div>
-      </div>
-
-      {/* メッセージ一覧 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.map((msg) => (
-          <ChatBubble key={msg.id} message={msg.text} isUser={msg.isUser} />
-        ))}
-
-        {/* ストリーミング中のバブル */}
-        {streamingText && (
-          <ChatBubble message={streamingText} isUser={false} />
-        )}
-
-        {/* ローディングインジケーター */}
-        {isLoading && !streamingText && (
-          <div className="chat chat-start">
-            <div className="chat-bubble">
-              <span className="loading loading-dots loading-sm"></span>
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* 入力エリア */}
-      <ChatInput onSend={sendMessage} disabled={isLoading} />
-    </div>
-  );
+// src/components/ChatInput.tsx
+interface ChatInputProps {
+  onSend: (message: string) => void;
+  disabled?: boolean;
 }
 ```
 
-### 入力コンポーネント
+- `disabled` で送信中やチャット上限到達時に入力を無効化
+- 空文字の送信を防止（`!input.trim()` チェック）
+- フォーム送信後に入力欄を自動クリア
+
+### ChatPage（チャット画面全体）
 
 ```tsx
-// src/app/components/ChatInput.tsx
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
-  const [input, setInput] = useState("");
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || disabled) return;
-    onSend(input.trim());
-    setInput("");
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="p-4 bg-base-100 border-t border-base-300">
-      <div className="flex gap-2 max-w-3xl mx-auto">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="メッセージを入力..."
-          className="input input-bordered flex-1"
-          disabled={disabled}
-        />
-        <button type="submit" className="btn btn-primary" disabled={disabled}>
-          {disabled ? <span className="loading loading-spinner loading-sm" /> : "送信"}
-        </button>
-      </div>
-    </form>
-  );
-}
+// src/app/chat/page.tsx の構成
+<div className="flex flex-col h-screen bg-base-200">
+  <header>  — ナビバー（タイトル + お試し回数表示 + ログアウト）
+  <div>     — メッセージ一覧（スクロール可能）
+  <ChatInput> — 入力フォーム（画面下部固定）
+</div>
 ```
 
-## テーマ設計
+#### 主な機能
 
-### DaisyUI テーマの設定
+- **初期メッセージ**: AI からの挨拶メッセージを表示
+- **チャット制限**: お試しユーザーは上限（デフォルト5回/日）に達すると入力が無効化
+- **認証チェック**: 未認証時は `/login` にリダイレクト
+- **送信中状態**: `sending` フラグで二重送信を防止
 
-```js
-// tailwind.config.ts
-import type { Config } from "tailwindcss";
+#### API 通信
 
-const config: Config = {
-  content: ["./src/**/*.{ts,tsx}"],
-  plugins: [require("daisyui")],
-  daisyui: {
-    themes: ["light", "dark", "cupcake"],
-    darkTheme: "dark",
-    base: true,
-    styled: true,
-    utils: true,
-  },
-};
+現在は JSON ポーリング方式です（SSE ストリーミングは将来実装予定）。
 
-export default config;
+```
+POST /api/chat → BFF Route Handler → FastAPI POST /chat
+レスポンス: { reply: string, chat_count: number, chat_limit: number }
 ```
 
-### テーマ切り替え（HTML 属性ベース）
+## 使用している DaisyUI コンポーネント
 
-```html
-<!-- ライトモード -->
-<html data-theme="light">
-
-<!-- ダークモード -->
-<html data-theme="dark">
-```
-
-```tsx
-// src/app/layout.tsx でのテーマ永続化
-"use client";
-import { useEffect, useState } from "react";
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState("light");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("theme") ?? "light";
-    setTheme(saved);
-    document.documentElement.setAttribute("data-theme", saved);
-  }, []);
-
-  return (
-    <html lang="ja" data-theme={theme}>
-      <body>{children}</body>
-    </html>
-  );
-}
-```
-
-## 使用する主要 DaisyUI コンポーネント
-
-| コンポーネント | クラス | 用途 |
-|-------------|-------|------|
-| チャットバブル | `chat`, `chat-start`, `chat-end`, `chat-bubble` | メッセージ表示 |
-| ボタン | `btn`, `btn-primary`, `btn-ghost` | 送信・操作 |
-| 入力欄 | `input`, `input-bordered` | テキスト入力 |
-| ナビゲーション | `navbar`, `navbar-start`, `navbar-end` | ヘッダー |
-| ローディング | `loading`, `loading-dots`, `loading-spinner` | 待機状態 |
-| アバター | `avatar` | ユーザー・AI アイコン |
-
-## 関連ドキュメント
-
-- [ストリーミング仕様](../api/streaming-spec.md)
-- [システム全体構成](../architecture/overall.md)
+| クラス | 用途 |
+|--------|------|
+| `chat`, `chat-start`, `chat-end` | メッセージの左右配置 |
+| `chat-bubble`, `chat-bubble-primary` | メッセージ吹き出し |
+| `input`, `input-bordered` | テキスト入力 |
+| `btn`, `btn-primary`, `btn-ghost`, `btn-sm` | ボタン |
+| `navbar`, `navbar-start`, `navbar-end` | ヘッダーナビ |
+| `loading`, `loading-spinner`, `loading-lg` | ローディング表示 |
+| `bg-base-100`, `bg-base-200`, `border-base-300` | 背景・ボーダー |
